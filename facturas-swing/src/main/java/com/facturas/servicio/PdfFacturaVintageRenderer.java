@@ -129,8 +129,10 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
         text(cb, "TOTAL A COBRAR", 130.92f, 690.11f, bold, 11f, BLACK);
         right(cb, euros(total), 458.13f, 690.59f, bold, 11f, BLACK);
         text(cb, "Tipo de pago:", 194.52f, 719.64f, bold, 11f, BLACK);
-        text(cb, normaliza(pago).contains("metalico") ? "Metálico ■" : "Metálico □", 291.96f, 719.64f, bold, 11f, BLACK);
-        text(cb, normaliza(pago).contains("cargo") ? "Cargo a cuenta ■" : "Cargo a cuenta □", 380.89f, 719.64f, bold, 11f, BLACK);
+        text(cb, "Metálico", 291.96f, 719.64f, bold, 11f, BLACK);
+        text(cb, "Cargo a cuenta", 380.89f, 719.64f, bold, 11f, BLACK);
+        checkBox(cb, 338.60f, 723.50f, normaliza(pago).contains("metalico"));
+        checkBox(cb, 454.10f, 723.50f, normaliza(pago).contains("cargo"));
     }
 
     private void logo(PdfContentByte cb, Empresa e) throws IOException, DocumentException {
@@ -143,6 +145,7 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
     }
 
     private void rect(PdfContentByte cb, float x, float top, float w, float h, Color c) { cb.saveState(); cb.setColorFill(c); cb.rectangle(x, y(top, h), w, h); cb.fill(); cb.restoreState(); }
+    private void checkBox(PdfContentByte cb, float x, float top, boolean checked) { cb.saveState(); cb.setColorStroke(BLACK); cb.rectangle(x, y(top, 4f), 4f, 4f); cb.stroke(); if (checked) rect(cb, x + .9f, top + .9f, 2.2f, 2.2f, BLACK); cb.restoreState(); }
     private void text(PdfContentByte cb, String s, float x, float top, BaseFont f, float size, Color c) { cb.saveState(); cb.beginText(); cb.setColorFill(c); cb.setFontAndSize(f, size); cb.showTextAligned(Element.ALIGN_LEFT, s, x, H - top - size, 0); cb.endText(); cb.restoreState(); }
     private void right(PdfContentByte cb, String s, float x, float top, BaseFont f, float size, Color c) { cb.saveState(); cb.beginText(); cb.setColorFill(c); cb.setFontAndSize(f, size); cb.showTextAligned(Element.ALIGN_RIGHT, s, x, H - top - size, 0); cb.endText(); cb.restoreState(); }
     private float y(float top, float h) { return H - top - h; }
