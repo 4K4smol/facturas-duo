@@ -27,7 +27,7 @@ public class FacturaService {
     private final FacturaDAO facturaDAO;
 
     public FacturaService() {
-        this(new ExcelService(), new PdfFacturaService(), new ClienteDAO(), new EmpresaDAO(), new FacturaDAO());
+        this(new ExcelService(), new PdfFacturaVintageRenderer(), new ClienteDAO(), new EmpresaDAO(), new FacturaDAO());
     }
 
     public FacturaService(
