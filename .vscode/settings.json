@@ -1,0 +1,8 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.maven.enabled": true,
+    "java.project.sourcePaths": [
+        "facturas-swing/src/main/java"
+    ],
+    "java.project.outputPath": "facturas-swing/target/vscode-classes"
+}

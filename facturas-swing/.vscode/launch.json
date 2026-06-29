@@ -1,0 +1,13 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Abrir Facturas Swing",
+            "request": "launch",
+            "mainClass": "com.facturas.Main",
+            "projectName": "facturas-swing",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
