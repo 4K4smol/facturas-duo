@@ -49,6 +49,8 @@ class PdfFacturaVintageRendererTest {
             assertEquals(595, Math.round(reader.getPageSize(1).getWidth()));
             assertEquals(842, Math.round(reader.getPageSize(1).getHeight()));
             String texto = new PdfTextExtractor(reader).getTextFromPage(1);
+            assertTrue(texto.contains("Rocio Gonzalez Martinez"));
+            assertTrue(texto.contains("Limpieza de cristales"));
             assertTrue(texto.contains("TOTAL A COBRAR"));
             assertTrue(texto.contains("26,62"));
             assertFalse(texto.toLowerCase().contains("retencion"));
