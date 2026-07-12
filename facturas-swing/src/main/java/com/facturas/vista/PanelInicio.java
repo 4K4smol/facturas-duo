@@ -67,7 +67,7 @@ class PanelInicio extends JPanel {
         tarjetas.setOpaque(false);
         tarjetas.add(tarjeta("Clientes registrados", clientesValor));
         tarjetas.add(tarjeta("Empresa configurada", empresaValor));
-        tarjetas.add(tarjeta("Ultimo Excel importado", excelValor));
+        tarjetas.add(tarjeta("Ultimo archivo importado", excelValor));
         tarjetas.add(tarjeta("Facturas generadas", facturasValor));
         return tarjetas;
     }
@@ -86,7 +86,7 @@ class PanelInicio extends JPanel {
         panel.add(UiTheme.seccion("Flujo de trabajo"));
         panel.add(UiTheme.ayuda("1. Configurar los datos de mi empresa."));
         panel.add(UiTheme.ayuda("2. Registrar clientes."));
-        panel.add(UiTheme.ayuda("3. Importar Excel mensual."));
+        panel.add(UiTheme.ayuda("3. Importar Excel/CSV mensual."));
         panel.add(UiTheme.ayuda("4. Generar facturas PDF."));
         return panel;
     }
@@ -96,11 +96,11 @@ class PanelInicio extends JPanel {
         panel.setOpaque(false);
 
         JButton cliente = UiTheme.botonPrimario("Anadir cliente");
-        JButton importar = UiTheme.botonSecundario("Importar Excel");
+        JButton importar = UiTheme.botonSecundario("Importar Excel/CSV");
         JButton generar = UiTheme.botonSecundario("Generar facturas");
 
         cliente.addActionListener(event -> navegar.accept("Clientes"));
-        importar.addActionListener(event -> navegar.accept("Importar Excel"));
+        importar.addActionListener(event -> navegar.accept("Importar Excel/CSV"));
         generar.addActionListener(event -> navegar.accept("Generar facturas"));
 
         panel.add(cliente);

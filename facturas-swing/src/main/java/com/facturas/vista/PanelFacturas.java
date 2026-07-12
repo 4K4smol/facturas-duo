@@ -59,7 +59,7 @@ public class PanelFacturas extends JPanel {
 
     private void seleccionarExcel() {
         JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new FileNameExtensionFilter("Hojas de calculo (*.ods, *.xlsx, *.xls)", "ods", "xlsx", "xls"));
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Hojas de calculo o CSV (*.ods, *.xlsx, *.xls, *.csv)", "ods", "xlsx", "xls", "csv"));
         int resultado = fileChooser.showOpenDialog(this);
 
         if (resultado == JFileChooser.APPROVE_OPTION) {

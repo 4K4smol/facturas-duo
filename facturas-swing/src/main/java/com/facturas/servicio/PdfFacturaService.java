@@ -28,16 +28,18 @@ import java.util.Locale;
 
 public class PdfFacturaService {
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private static final Font TITULO = new Font(Font.HELVETICA, 18, Font.BOLD);
-    private static final Font CABECERA = new Font(Font.HELVETICA, 11, Font.BOLD);
+    private static final Font TITULO = new Font(Font.HELVETICA, 16, Font.BOLD);
+    private static final Font CABECERA = new Font(Font.HELVETICA, 12, Font.BOLD);
     private static final Font NORMAL = new Font(Font.HELVETICA, 10);
-    private static final Font NEGRITA = new Font(Font.HELVETICA, 10, Font.BOLD);
+    private static final Font NEGRITA = new Font(Font.HELVETICA, 11, Font.BOLD);
+    private static final Font BRAND = new Font(Font.HELVETICA, 20, Font.BOLD, new Color(255, 193, 7));
 
     public Path generarPdf(Factura factura, Empresa empresa, Path carpetaSalida) throws IOException, DocumentException {
         return generarPdf(factura, empresa, carpetaSalida, "Transferencia");
     }
 
-    public Path generarPdf(Factura factura, Empresa empresa, Path carpetaSalida, String formaPago) throws IOException, DocumentException {
+    public Path generarPdf(Factura factura, Empresa empresa, Path carpetaSalida, String formaPago)
+            throws IOException, DocumentException {
         Files.createDirectories(carpetaSalida);
         String nombreArchivo = "factura_" + limpiarNombreArchivo(factura.getNumero()) + ".pdf";
         Path archivoSalida = carpetaSalida.resolve(nombreArchivo);
@@ -83,8 +85,7 @@ public class PdfFacturaService {
     private PdfPTable seccionEmpresa(Empresa empresa) throws IOException, DocumentException {
         PdfPTable tabla = new PdfPTable(2);
         tabla.setWidthPercentage(100);
-        tabla.setWidths(new float[]{65, 35});
-
+        tabla.setWidths(new float[] { 65, 35 });
         PdfPCell datos = celdaBorde();
         datos.addElement(new Phrase(valor(empresa.getNombre()), CABECERA));
         datos.addElement(new Phrase("DNI/NIF/CIF: " + valor(empresa.getNif()), NORMAL));
@@ -98,10 +99,13 @@ public class PdfFacturaService {
         logo.setVerticalAlignment(Element.ALIGN_MIDDLE);
         if (empresa.getLogoPath() != null && new File(empresa.getLogoPath()).isFile()) {
             Image image = Image.getInstance(empresa.getLogoPath());
-            image.scaleToFit(130, 70);
+            image.scaleToFit(150, 90);
             logo.addElement(image);
         } else {
-            logo.addElement(new Phrase(valor(empresa.getNombre()), CABECERA));
+            // show brand-styled name when no logo is provided
+            Paragraph p = new Paragraph(valor(empresa.getNombre()), BRAND);
+            p.setAlignment(Element.ALIGN_RIGHT);
+            logo.addElement(p);
         }
 
         tabla.addCell(datos);
@@ -112,8 +116,14 @@ public class PdfFacturaService {
     private PdfPTable franjaFactura(Factura factura, Empresa empresa) {
         PdfPTable tabla = new PdfPTable(2);
         tabla.setWidthPercentage(100);
-        tabla.addCell(celdaTexto(valor(empresa.getLocalidad()) + ", " + factura.getFecha().format(FORMATO_FECHA), NORMAL));
-        tabla.addCell(celdaTexto("N factura: " + valor(factura.getNumero()), NEGRITA));
+        PdfPCell izquierda = celdaTexto(valor(empresa.getLocalidad()) + ", " + factura.getFecha().format(FORMATO_FECHA),
+                NORMAL);
+        izquierda.setBorderWidth(1f);
+        PdfPCell derecha = celdaTexto("Nº Factura: " + valor(factura.getNumero()), NEGRITA);
+        derecha.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        derecha.setBorderWidth(1f);
+        tabla.addCell(izquierda);
+        tabla.addCell(derecha);
         return tabla;
     }
 
@@ -126,7 +136,9 @@ public class PdfFacturaService {
         celda.addElement(new Phrase("Nombre / razon social: " + nombreFiscal(factura), NORMAL));
         celda.addElement(new Phrase("CIF/NIF: " + valor(factura.getCliente().getNif()), NORMAL));
         celda.addElement(new Phrase(valor(factura.getCliente().getDireccion()), NORMAL));
-        celda.addElement(new Phrase(valor(factura.getCliente().getCodigoPostal()) + " " + valor(factura.getCliente().getLocalidad()), NORMAL));
+        celda.addElement(new Phrase(
+                valor(factura.getCliente().getCodigoPostal()) + " " + valor(factura.getCliente().getLocalidad()),
+                NORMAL));
         if (factura.getCliente().getTelefono() != null && !factura.getCliente().getTelefono().isBlank()) {
             celda.addElement(new Phrase("Telefono: " + factura.getCliente().getTelefono(), NORMAL));
         }
@@ -137,12 +149,31 @@ public class PdfFacturaService {
     private PdfPTable seccionConcepto(Factura factura) {
         PdfPTable tabla = new PdfPTable(2);
         tabla.setWidthPercentage(100);
+        tabla.setWidths(new float[] { 75f, 25f });
         tabla.addCell(celdaCabecera("Trabajo"));
         tabla.addCell(celdaCabecera("Precio (sin IVA)"));
-        tabla.addCell(celdaTexto(concepto(factura), NORMAL));
-        tabla.addCell(celdaTexto(moneda(factura.getBaseImponible()), NORMAL));
-        tabla.addCell(celdaTexto("Total", NEGRITA));
-        tabla.addCell(celdaTexto(moneda(factura.getBaseImponible()), NEGRITA));
+
+        // concepto cell with larger minimum height to create space like the sample
+        PdfPCell trabajo = new PdfPCell(new Phrase(concepto(factura), NORMAL));
+        trabajo.setPadding(12);
+        trabajo.setBorderWidth(1f);
+        trabajo.setMinimumHeight(120f);
+        tabla.addCell(trabajo);
+
+        PdfPCell precio = celdaTexto(moneda(factura.getBaseImponible()), NORMAL);
+        precio.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        precio.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        tabla.addCell(precio);
+
+        // total row
+        PdfPCell etiquetaTotal = celdaTexto("Total", NEGRITA);
+        etiquetaTotal.setBorderWidthTop(0f);
+        etiquetaTotal.setBorderWidthBottom(1f);
+        etiquetaTotal.setHorizontalAlignment(Element.ALIGN_LEFT);
+        PdfPCell valorTotal = celdaTexto(moneda(factura.getBaseImponible()), NEGRITA);
+        valorTotal.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        tabla.addCell(etiquetaTotal);
+        tabla.addCell(valorTotal);
         return tabla;
     }
 

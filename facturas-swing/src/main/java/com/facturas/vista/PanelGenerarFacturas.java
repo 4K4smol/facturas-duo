@@ -105,7 +105,7 @@ class PanelGenerarFacturas extends JPanel {
         notaConstraints.gridwidth = 2;
         notaConstraints.insets = new Insets(12, 8, 8, 8);
         notaConstraints.anchor = GridBagConstraints.LINE_START;
-        contenedor.add(UiTheme.ayuda("Se generara una factura por cada fila valida del Excel. No se aplican retenciones."), notaConstraints);
+        contenedor.add(UiTheme.ayuda("Se generara una factura por cada fila valida del archivo importado. No se aplican retenciones."), notaConstraints);
         return contenedor;
     }
 
@@ -119,7 +119,7 @@ class PanelGenerarFacturas extends JPanel {
         JButton cancelar = UiTheme.botonSecundario("Cancelar");
         generar.addActionListener(event -> generarPdfs());
         vistaPrevia.addActionListener(event -> mostrarVistaPrevia());
-        cancelar.addActionListener(event -> navegar.accept("Importar Excel"));
+        cancelar.addActionListener(event -> navegar.accept("Importar Excel/CSV"));
         botones.add(vistaPrevia);
         botones.add(cancelar);
         botones.add(generar);
@@ -191,7 +191,7 @@ class PanelGenerarFacturas extends JPanel {
 
     private void generarPdfs() {
         if (appState.getArchivoExcel() == null) {
-            JOptionPane.showMessageDialog(this, "Selecciona e importa un archivo Excel.");
+            JOptionPane.showMessageDialog(this, "Selecciona e importa un archivo Excel/CSV.");
             return;
         }
         if (!appState.puedeGenerar()) {

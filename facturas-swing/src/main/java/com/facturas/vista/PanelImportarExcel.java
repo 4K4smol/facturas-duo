@@ -77,14 +77,14 @@ class PanelImportarExcel extends JPanel {
         contenedor.setOpaque(false);
         JPanel titulo = new JPanel(new BorderLayout(4, 4));
         titulo.setOpaque(false);
-        titulo.add(UiTheme.titulo("Importar Excel"), BorderLayout.NORTH);
-        titulo.add(UiTheme.ayuda("Seleccione el archivo del mes. Se leera solo Hoja3 para cargar las facturas."), BorderLayout.CENTER);
+        titulo.add(UiTheme.titulo("Importar Excel o CSV"), BorderLayout.NORTH);
+        titulo.add(UiTheme.ayuda("Seleccione el archivo del mes. En Excel/ODS se leera Hoja3; en CSV se leeran sus columnas."), BorderLayout.CENTER);
 
         JPanel selector = UiTheme.panelBlanco();
         selector.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 0));
         JButton seleccionar = UiTheme.botonSecundario("Seleccionar archivo");
         JButton leer = UiTheme.botonPrimario("Leer archivo");
-        seleccionar.addActionListener(event -> seleccionarExcel());
+        seleccionar.addActionListener(event -> seleccionarArchivo());
         leer.addActionListener(event -> leerArchivo());
         selector.add(archivoField);
         selector.add(seleccionar);
@@ -113,7 +113,7 @@ class PanelImportarExcel extends JPanel {
         validar.addActionListener(event -> validarDatos());
         continuar.addActionListener(event -> {
             if (appState.getValidaciones().isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Primero valida los datos del Excel.");
+                JOptionPane.showMessageDialog(this, "Primero valida los datos del archivo.");
                 return;
             }
             navegar.accept("Generar facturas");
@@ -128,9 +128,9 @@ class PanelImportarExcel extends JPanel {
         return inferior;
     }
 
-    private void seleccionarExcel() {
+    private void seleccionarArchivo() {
         JFileChooser chooser = new JFileChooser();
-        chooser.setFileFilter(new FileNameExtensionFilter("Hojas de calculo (*.ods, *.xlsx, *.xls)", "ods", "xlsx", "xls"));
+        chooser.setFileFilter(new FileNameExtensionFilter("Hojas de calculo o CSV (*.ods, *.xlsx, *.xls, *.csv)", "ods", "xlsx", "xls", "csv"));
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             File archivo = chooser.getSelectedFile();
             appState.setArchivoExcel(archivo);
@@ -157,7 +157,7 @@ class PanelImportarExcel extends JPanel {
 
     private void validarDatos() {
         if (appState.getFilasExcel().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Primero lee un archivo Excel.");
+            JOptionPane.showMessageDialog(this, "Primero lee un archivo.");
             return;
         }
 

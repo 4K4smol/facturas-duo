@@ -112,13 +112,14 @@ public class FacturaService {
     }
 
     private Factura crearFactura(FacturaExcel fila, Cliente cliente) {
-        BigDecimal total = valor(fila.getTotalConIva()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal totalImportado = valor(fila.getTotalConIva()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal baseImponible = fila.getBaseImponible() == null
-                ? total.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP)
+                ? totalImportado.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP)
                 : fila.getBaseImponible().setScale(2, RoundingMode.HALF_UP);
         BigDecimal iva = fila.getIva() == null
-                ? total.subtract(baseImponible).setScale(2, RoundingMode.HALF_UP)
+                ? baseImponible.multiply(new BigDecimal("0.21")).setScale(2, RoundingMode.HALF_UP)
                 : fila.getIva().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = baseImponible.add(iva).setScale(2, RoundingMode.HALF_UP);
 
         Factura factura = new Factura();
         factura.setNumero(fila.getNumero());

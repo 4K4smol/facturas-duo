@@ -49,7 +49,7 @@ public class VentanaPrincipal extends JFrame {
         ));
 
         JLabel titulo = UiTheme.titulo("Gestor de Facturas");
-        JLabel subtitulo = UiTheme.ayuda("Gestion de clientes, empresa, importacion de Excel y generacion de facturas PDF");
+        JLabel subtitulo = UiTheme.ayuda("Gestion de clientes, empresa, importacion de Excel/CSV y generacion de facturas PDF");
         encabezado.add(titulo, BorderLayout.NORTH);
         encabezado.add(subtitulo, BorderLayout.CENTER);
         return encabezado;
@@ -68,7 +68,7 @@ public class VentanaPrincipal extends JFrame {
         agregarBotonMenu(botones, "Inicio");
         agregarBotonMenu(botones, "Datos de mi empresa");
         agregarBotonMenu(botones, "Clientes");
-        agregarBotonMenu(botones, "Importar Excel");
+        agregarBotonMenu(botones, "Importar Excel/CSV");
         agregarBotonMenu(botones, "Generar facturas");
         agregarBotonMenu(botones, "Facturas generadas");
         agregarBotonMenu(botones, "Configuracion");
@@ -97,7 +97,7 @@ public class VentanaPrincipal extends JFrame {
         panelCentral.add(new PanelInicio(appState, this::mostrar), "Inicio");
         panelCentral.add(new PanelEmpresa(), "Datos de mi empresa");
         panelCentral.add(new PanelClientes(), "Clientes");
-        panelCentral.add(new PanelImportarExcel(appState, this::mostrar), "Importar Excel");
+        panelCentral.add(new PanelImportarExcel(appState, this::mostrar), "Importar Excel/CSV");
         panelCentral.add(new PanelGenerarFacturas(appState, this::mostrar), "Generar facturas");
         panelCentral.add(new PanelFacturasGeneradas(appState), "Facturas generadas");
         panelCentral.add(new PanelConfiguracion(appState), "Configuracion");

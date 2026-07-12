@@ -24,7 +24,17 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.text.Normalizer;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,6 +52,9 @@ public class ExcelService {
     private static final String OFFICE_NS = "urn:oasis:names:tc:opendocument:xmlns:office:1.0";
 
     public List<FacturaExcel> leerFacturas(File archivoExcel) throws IOException {
+        if (esCsv(archivoExcel)) {
+            return leerFacturasCsv(archivoExcel);
+        }
         if (esOds(archivoExcel)) {
             return leerFacturasHoja3(leerHojasOds(archivoExcel).get(HOJA_FACTURAS));
         }
@@ -65,6 +78,22 @@ public class ExcelService {
         }
     }
 
+    private List<FacturaExcel> leerFacturasCsv(File archivoCsv) throws IOException {
+        List<List<String>> filas = leerFilasCsv(archivoCsv);
+        if (filas.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, Integer> columnas = columnasCsv(filas.get(0));
+        if (columnas.containsKey("numero") && columnas.containsKey("cliente")) {
+            return leerFacturasCsvConCabecera(filas, columnas);
+        }
+        if (tieneFormatoHoja3(filas)) {
+            return leerFacturasHoja3(filas);
+        }
+        return leerFacturasLegacy(filas);
+    }
+
     private List<FacturaExcel> leerFacturasExcel(File archivoExcel) throws IOException {
         try (FileInputStream inputStream = new FileInputStream(archivoExcel);
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -83,7 +112,8 @@ public class ExcelService {
             return List.of();
         }
 
-        int inicio = indiceCabeceraHoja3(filas) + 1;
+        int indiceCabecera = indiceCabeceraHoja3(filas);
+        int inicio = indiceCabecera >= 0 ? indiceCabecera + 1 : 1;
         List<FacturaExcel> facturas = new ArrayList<>();
         for (int i = inicio; i < filas.size(); i++) {
             List<String> fila = filas.get(i);
@@ -92,6 +122,10 @@ public class ExcelService {
             BigDecimal base = decimal(valor(fila, 2));
             BigDecimal iva = decimal(valor(fila, 3));
             BigDecimal total = decimal(valor(fila, 5));
+
+            if (positivo(base) && iva == null) {
+                iva = calcularIva21(base);
+            }
 
             if (!debeImportarFilaFactura(numero, cliente, base, iva, total)) {
                 continue;
@@ -103,10 +137,73 @@ public class ExcelService {
             factura.setNombreCliente(cliente);
             factura.setBaseImponible(base);
             factura.setIva(iva);
-            factura.setTotalConIva(total);
+            factura.setTotalConIva(totalSinRetencion(base, iva, total));
             factura.setCobro(valor(fila, 7));
             factura.setDescripcion(descripcion);
             factura.setConcepto(descripcion.isBlank() ? "Limpieza de cristales" : descripcion);
+            factura.setFecha(LocalDate.now());
+            facturas.add(factura);
+        }
+        return facturas;
+    }
+
+    private List<FacturaExcel> leerFacturasCsvConCabecera(List<List<String>> filas, Map<String, Integer> columnas) {
+        List<FacturaExcel> facturas = new ArrayList<>();
+        for (int i = 1; i < filas.size(); i++) {
+            List<String> fila = filas.get(i);
+            String numero = normalizarNumeroFactura(celdaCsv(fila, columnas, "numero"));
+            String cliente = celdaCsv(fila, columnas, "cliente");
+            BigDecimal base = decimal(celdaCsv(fila, columnas, "base"));
+            BigDecimal iva = decimal(celdaCsv(fila, columnas, "iva"));
+            BigDecimal totalOriginal = decimal(celdaCsv(fila, columnas, "total"));
+
+            if (base == null && positivo(totalOriginal)) {
+                base = totalOriginal.divide(new BigDecimal("1.21"), 2, java.math.RoundingMode.HALF_UP);
+            }
+            if (positivo(base) && iva == null) {
+                iva = calcularIva21(base);
+            }
+            BigDecimal total = totalSinRetencion(base, iva, totalOriginal);
+
+            if (!debeImportarFilaFactura(numero, cliente, base, iva, total)) {
+                continue;
+            }
+
+            String concepto = celdaCsv(fila, columnas, "concepto");
+            FacturaExcel factura = new FacturaExcel();
+            factura.setNumero(numero);
+            factura.setNombreCliente(cliente);
+            factura.setBaseImponible(base);
+            factura.setIva(iva);
+            factura.setTotalConIva(total);
+            factura.setCobro(celdaCsv(fila, columnas, "cobro"));
+            factura.setDescripcion(concepto);
+            factura.setConcepto(concepto.isBlank() ? "Limpieza de cristales" : concepto);
+            factura.setFecha(fechaCsv(celdaCsv(fila, columnas, "fecha")));
+            facturas.add(factura);
+        }
+        return facturas;
+    }
+
+    private List<FacturaExcel> leerFacturasLegacy(List<List<String>> filas) {
+        List<FacturaExcel> facturas = new ArrayList<>();
+        for (int i = 1; i < filas.size(); i++) {
+            List<String> fila = filas.get(i);
+            if (filaVacia(fila)) {
+                continue;
+            }
+
+            BigDecimal total = decimal(valor(fila, 3));
+            FacturaExcel factura = new FacturaExcel();
+            factura.setNumero(normalizarNumeroFactura(valor(fila, 0)));
+            factura.setNombreCliente(valor(fila, 1));
+            factura.setConcepto(valor(fila, 2));
+            if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal base = total.divide(new BigDecimal("1.21"), 2, java.math.RoundingMode.HALF_UP);
+                factura.setBaseImponible(base);
+                factura.setIva(total.subtract(base));
+            }
+            factura.setTotalConIva(total);
             factura.setFecha(LocalDate.now());
             facturas.add(factura);
         }
@@ -209,7 +306,7 @@ public class ExcelService {
                 return i;
             }
         }
-        return 0;
+        return -1;
     }
 
     private List<List<String>> filas(Sheet hoja, DataFormatter formatter, FormulaEvaluator evaluator) {
@@ -232,6 +329,183 @@ public class ExcelService {
             }
         }
         return filas;
+    }
+
+    private Map<String, Integer> columnasCsv(List<String> cabecera) {
+        Map<String, Integer> columnas = new HashMap<>();
+        for (int i = 0; i < cabecera.size(); i++) {
+            String nombre = normalizarCabecera(cabecera.get(i));
+            if (nombre.matches("n|no|numero|nfactura|numerofactura|factura")) {
+                columnas.putIfAbsent("numero", i);
+            } else if (nombre.matches("cliente|nombrecliente|razonsocial|nombreorazonsocial")) {
+                columnas.putIfAbsent("cliente", i);
+            } else if (nombre.matches("base|baseimponible|preciosiniva|importe")) {
+                columnas.putIfAbsent("base", i);
+            } else if (nombre.matches("iva|importeiva|cuotaiva")) {
+                columnas.putIfAbsent("iva", i);
+            } else if (nombre.matches("total|totalconiva|totalfactura|totalacobrar")) {
+                columnas.putIfAbsent("total", i);
+            } else if (nombre.matches("cobro|formapago|tipopago|pago")) {
+                columnas.putIfAbsent("cobro", i);
+            } else if (nombre.matches("concepto|descripcion|trabajo|servicio")) {
+                columnas.putIfAbsent("concepto", i);
+            } else if (nombre.matches("fecha|fechafactura")) {
+                columnas.putIfAbsent("fecha", i);
+            }
+        }
+        return columnas;
+    }
+
+    private String celdaCsv(List<String> fila, Map<String, Integer> columnas, String columna) {
+        Integer indice = columnas.get(columna);
+        return indice == null ? "" : valor(fila, indice);
+    }
+
+    private List<List<String>> leerFilasCsv(File archivo) throws IOException {
+        String contenido = leerTextoCsv(archivo);
+        if (contenido.isEmpty()) {
+            return List.of();
+        }
+
+        char separador = detectarSeparadorCsv(contenido);
+        List<List<String>> filas = new ArrayList<>();
+        List<String> fila = new ArrayList<>();
+        StringBuilder celda = new StringBuilder();
+        boolean entreComillas = false;
+
+        for (int i = 0; i < contenido.length(); i++) {
+            char caracter = contenido.charAt(i);
+            if (caracter == '"') {
+                if (entreComillas && i + 1 < contenido.length() && contenido.charAt(i + 1) == '"') {
+                    celda.append('"');
+                    i++;
+                } else {
+                    entreComillas = !entreComillas;
+                }
+            } else if (caracter == separador && !entreComillas) {
+                fila.add(celda.toString().trim());
+                celda.setLength(0);
+            } else if ((caracter == '\n' || caracter == '\r') && !entreComillas) {
+                if (caracter == '\r' && i + 1 < contenido.length() && contenido.charAt(i + 1) == '\n') {
+                    i++;
+                }
+                fila.add(celda.toString().trim());
+                if (!filaVacia(fila)) {
+                    filas.add(fila);
+                }
+                fila = new ArrayList<>();
+                celda.setLength(0);
+            } else {
+                celda.append(caracter);
+            }
+        }
+
+        fila.add(celda.toString().trim());
+        if (!filaVacia(fila)) {
+            filas.add(fila);
+        }
+        return filas;
+    }
+
+    private String leerTextoCsv(File archivo) throws IOException {
+        byte[] bytes = Files.readAllBytes(archivo.toPath());
+        try {
+            return quitarBom(decodificar(bytes, StandardCharsets.UTF_8));
+        } catch (CharacterCodingException e) {
+            return quitarBom(new String(bytes, Charset.forName("windows-1252")));
+        }
+    }
+
+    private String decodificar(byte[] bytes, Charset charset) throws CharacterCodingException {
+        CharsetDecoder decoder = charset.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        return decoder.decode(ByteBuffer.wrap(bytes)).toString();
+    }
+
+    private String quitarBom(String texto) {
+        return texto != null && !texto.isEmpty() && texto.charAt(0) == '\uFEFF'
+                ? texto.substring(1)
+                : texto;
+    }
+
+    private char detectarSeparadorCsv(String contenido) {
+        String primeraLinea = contenido.lines()
+                .filter(linea -> !linea.isBlank())
+                .findFirst()
+                .orElse("");
+        char separador = ';';
+        int maximo = contarSeparadorCsv(primeraLinea, separador);
+        for (char candidato : new char[]{',', '\t'}) {
+            int cantidad = contarSeparadorCsv(primeraLinea, candidato);
+            if (cantidad > maximo) {
+                separador = candidato;
+                maximo = cantidad;
+            }
+        }
+        return separador;
+    }
+
+    private int contarSeparadorCsv(String linea, char separador) {
+        int total = 0;
+        boolean entreComillas = false;
+        for (int i = 0; i < linea.length(); i++) {
+            char caracter = linea.charAt(i);
+            if (caracter == '"') {
+                if (entreComillas && i + 1 < linea.length() && linea.charAt(i + 1) == '"') {
+                    i++;
+                } else {
+                    entreComillas = !entreComillas;
+                }
+            } else if (caracter == separador && !entreComillas) {
+                total++;
+            }
+        }
+        return total;
+    }
+
+    private boolean tieneFormatoHoja3(List<List<String>> filas) {
+        if (indiceCabeceraHoja3(filas) >= 0) {
+            return true;
+        }
+
+        return filas.stream().limit(10).anyMatch(fila -> {
+            BigDecimal base = decimal(valor(fila, 2));
+            BigDecimal iva = decimal(valor(fila, 3));
+            BigDecimal total = decimal(valor(fila, 5));
+            return (positivo(base) || positivo(iva))
+                    && positivo(total)
+                    && (!valor(fila, 0).isBlank() || !valor(fila, 1).isBlank());
+        });
+    }
+
+    private LocalDate fechaCsv(String texto) {
+        if (texto == null || texto.isBlank()) {
+            return LocalDate.now();
+        }
+
+        for (DateTimeFormatter formato : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("d/M/uuuu"),
+                DateTimeFormatter.ofPattern("d-M-uuuu")
+        )) {
+            try {
+                return LocalDate.parse(texto.trim(), formato);
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+        return LocalDate.now();
+    }
+
+    private BigDecimal totalSinRetencion(BigDecimal base, BigDecimal iva, BigDecimal totalOriginal) {
+        if (base != null && iva != null) {
+            return base.add(iva).setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+        return totalOriginal == null ? null : totalOriginal.setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal calcularIva21(BigDecimal base) {
+        return base.multiply(new BigDecimal("0.21")).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private Map<String, List<List<String>>> leerHojasOds(File archivo) throws IOException {
@@ -452,9 +726,15 @@ public class ExcelService {
         return archivo != null && archivo.getName().toLowerCase(Locale.ROOT).endsWith(".ods");
     }
 
+    private boolean esCsv(File archivo) {
+        return archivo != null && archivo.getName().toLowerCase(Locale.ROOT).endsWith(".csv");
+    }
+
     private String normalizarCabecera(String texto) {
         return texto == null
                 ? ""
-                : texto.toLowerCase(Locale.ROOT).replace("º", "o").replaceAll("[^a-z0-9]", "");
+                : Normalizer.normalize(texto.toLowerCase(Locale.ROOT).replace("º", "o"), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .replaceAll("[^a-z0-9]", "");
     }
 }
