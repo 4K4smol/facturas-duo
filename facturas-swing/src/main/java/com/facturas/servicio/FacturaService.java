@@ -116,20 +116,36 @@ public class FacturaService {
         BigDecimal baseImponible = fila.getBaseImponible() == null
                 ? totalImportado.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP)
                 : fila.getBaseImponible().setScale(2, RoundingMode.HALF_UP);
-        BigDecimal iva = fila.getIva() == null
-                ? baseImponible.multiply(new BigDecimal("0.21")).setScale(2, RoundingMode.HALF_UP)
-                : fila.getIva().setScale(2, RoundingMode.HALF_UP);
+        // La cuota siempre parte de la base y del tipo legal fijo; no se infiere
+        // ningún porcentaje a partir de importes importados o totales antiguos.
+        BigDecimal iva = baseImponible.multiply(new BigDecimal("0.21")).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = baseImponible.add(iva).setScale(2, RoundingMode.HALF_UP);
 
         Factura factura = new Factura();
         factura.setNumero(fila.getNumero());
         factura.setFecha(fila.getFecha());
         factura.setCliente(cliente);
-        factura.setConcepto(fila.getConcepto());
+        factura.setConcepto(conceptoAutomatico(fila, cliente));
         factura.setBaseImponible(baseImponible);
         factura.setIva(iva);
         factura.setTotal(total);
         return factura;
+    }
+
+    private String conceptoAutomatico(FacturaExcel fila, Cliente cliente) {
+        String indicador = String.join(" ",
+                texto(fila.getConcepto()), texto(fila.getDescripcion()),
+                texto(cliente.getNombre()), texto(cliente.getRazonSocial()))
+                .toLowerCase(java.util.Locale.ROOT);
+        indicador = java.text.Normalizer.normalize(indicador, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return indicador.matches(".*\\b(portal|comunidad|comunidades)\\b.*")
+                ? "Limpieza de comunidad"
+                : "Limpieza de cristales";
+    }
+
+    private String texto(String valor) {
+        return valor == null ? "" : valor.trim();
     }
 
     private BigDecimal valor(BigDecimal cantidad) {

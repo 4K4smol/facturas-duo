@@ -197,12 +197,12 @@ public class ClienteDAO {
         return cliente;
     }
 
-    private boolean coincide(String buscado, String candidato) {
+    boolean coincide(String buscado, String candidato) {
         String normalizado = normalizar(candidato);
         if (buscado.isBlank() || normalizado.isBlank()) {
             return false;
         }
-        return normalizado.equals(buscado) || normalizado.contains(buscado) || buscado.contains(normalizado);
+        return normalizado.equals(buscado);
     }
 
     private String normalizar(String texto) {

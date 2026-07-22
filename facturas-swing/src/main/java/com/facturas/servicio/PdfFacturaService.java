@@ -185,9 +185,11 @@ public class PdfFacturaService {
         tabla.addCell(celdaTexto("Base imponible", NORMAL));
         tabla.addCell(celdaTexto(moneda(factura.getBaseImponible()), NORMAL));
         tabla.addCell(celdaTexto("IVA 21%", NORMAL));
-        tabla.addCell(celdaTexto(moneda(factura.getIva()), NORMAL));
+        BigDecimal iva = valorMonetario(factura.getBaseImponible()).multiply(new BigDecimal("0.21"))
+                .setScale(2, java.math.RoundingMode.HALF_UP);
+        tabla.addCell(celdaTexto(moneda(iva), NORMAL));
         tabla.addCell(celdaTotal("TOTAL A COBRAR"));
-        tabla.addCell(celdaTotal(moneda(factura.getTotal())));
+        tabla.addCell(celdaTotal(moneda(valorMonetario(factura.getBaseImponible()).add(iva))));
         return tabla;
     }
 
@@ -234,6 +236,10 @@ public class PdfFacturaService {
     private String moneda(BigDecimal cantidad) {
         NumberFormat format = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("es-ES"));
         return format.format(cantidad == null ? BigDecimal.ZERO : cantidad);
+    }
+
+    private BigDecimal valorMonetario(BigDecimal cantidad) {
+        return cantidad == null ? BigDecimal.ZERO : cantidad;
     }
 
     private String limpiarNombreArchivo(String nombre) {
