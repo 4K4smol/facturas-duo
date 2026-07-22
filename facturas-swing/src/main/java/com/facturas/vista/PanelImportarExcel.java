@@ -25,7 +25,6 @@ import java.awt.Component;
 import java.awt.FlowLayout;
 import java.io.File;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.sql.SQLException;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -282,24 +281,15 @@ class PanelImportarExcel extends JPanel {
     }
 
     private BigDecimal base(FacturaExcel fila) {
-        if (fila.getBaseImponible() != null) {
-            return fila.getBaseImponible().setScale(2, RoundingMode.HALF_UP);
-        }
-        BigDecimal total = total(fila);
-        return total.compareTo(BigDecimal.ZERO) <= 0
-                ? BigDecimal.ZERO
-                : total.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP);
+        return fila.getBaseImponible() == null ? BigDecimal.ZERO : fila.getBaseImponible();
     }
 
     private BigDecimal iva(FacturaExcel fila) {
-        if (fila.getIva() != null) {
-            return fila.getIva().setScale(2, RoundingMode.HALF_UP);
-        }
-        return total(fila).subtract(base(fila)).setScale(2, RoundingMode.HALF_UP);
+        return fila.getIva() == null ? BigDecimal.ZERO : fila.getIva();
     }
 
     private BigDecimal total(FacturaExcel fila) {
-        return fila.getTotalConIva() == null ? BigDecimal.ZERO : fila.getTotalConIva().setScale(2, RoundingMode.HALF_UP);
+        return fila.getTotalConIva() == null ? BigDecimal.ZERO : fila.getTotalConIva();
     }
 
     private String nombreFiscal(Cliente cliente) {

@@ -22,7 +22,6 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.awt.Window;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -220,24 +219,15 @@ class VistaPreviaFacturaDialog extends JDialog {
     }
 
     private BigDecimal base(FacturaExcel fila) {
-        if (fila.getBaseImponible() != null) {
-            return fila.getBaseImponible().setScale(2, RoundingMode.HALF_UP);
-        }
-        BigDecimal total = total(fila);
-        return total.compareTo(BigDecimal.ZERO) <= 0
-                ? BigDecimal.ZERO
-                : total.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP);
+        return fila.getBaseImponible() == null ? BigDecimal.ZERO : fila.getBaseImponible();
     }
 
     private BigDecimal iva(FacturaExcel fila) {
-        if (fila.getIva() != null) {
-            return fila.getIva().setScale(2, RoundingMode.HALF_UP);
-        }
-        return total(fila).subtract(base(fila)).setScale(2, RoundingMode.HALF_UP);
+        return fila.getIva() == null ? BigDecimal.ZERO : fila.getIva();
     }
 
     private BigDecimal total(FacturaExcel fila) {
-        return fila.getTotalConIva() == null ? BigDecimal.ZERO : fila.getTotalConIva().setScale(2, RoundingMode.HALF_UP);
+        return fila.getTotalConIva() == null ? BigDecimal.ZERO : fila.getTotalConIva();
     }
 
     private String moneda(BigDecimal cantidad) {

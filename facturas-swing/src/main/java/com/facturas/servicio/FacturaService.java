@@ -10,7 +10,6 @@ import com.facturas.modelo.FacturaExcel;
 
 import java.io.File;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -112,23 +111,14 @@ public class FacturaService {
     }
 
     private Factura crearFactura(FacturaExcel fila, Cliente cliente) {
-        BigDecimal totalImportado = valor(fila.getTotalConIva()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal baseImponible = fila.getBaseImponible() == null
-                ? totalImportado.divide(new BigDecimal("1.21"), 2, RoundingMode.HALF_UP)
-                : fila.getBaseImponible().setScale(2, RoundingMode.HALF_UP);
-        // La cuota siempre parte de la base y del tipo legal fijo; no se infiere
-        // ningún porcentaje a partir de importes importados o totales antiguos.
-        BigDecimal iva = baseImponible.multiply(new BigDecimal("0.21")).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = baseImponible.add(iva).setScale(2, RoundingMode.HALF_UP);
-
         Factura factura = new Factura();
         factura.setNumero(fila.getNumero());
         factura.setFecha(fila.getFecha());
         factura.setCliente(cliente);
         factura.setConcepto(conceptoAutomatico(fila, cliente));
-        factura.setBaseImponible(baseImponible);
-        factura.setIva(iva);
-        factura.setTotal(total);
+        factura.setBaseImponible(fila.getBaseImponible());
+        factura.setIva(fila.getIva());
+        factura.setTotal(fila.getTotalConIva());
         return factura;
     }
 
@@ -146,10 +136,6 @@ public class FacturaService {
 
     private String texto(String valor) {
         return valor == null ? "" : valor.trim();
-    }
-
-    private BigDecimal valor(BigDecimal cantidad) {
-        return cantidad == null ? BigDecimal.ZERO : cantidad;
     }
 
     private String validarFila(FacturaExcel fila, Set<String> facturasVistas) {

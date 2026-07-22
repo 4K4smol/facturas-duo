@@ -119,28 +119,25 @@ public class ExcelService {
             List<String> fila = filas.get(i);
             String numero = normalizarNumeroFactura(valor(fila, 0));
             String cliente = valor(fila, 1);
+            // Formato de Hoja3: C = base imponible, D = IVA, E = tarifa y
+            // F = total. La tarifa no interviene en el importe de la factura.
             BigDecimal base = decimal(valor(fila, 2));
             BigDecimal iva = decimal(valor(fila, 3));
             BigDecimal total = decimal(valor(fila, 5));
-
-            if (positivo(base) && iva == null) {
-                iva = calcularIva21(base);
-            }
 
             if (!debeImportarFilaFactura(numero, cliente, base, iva, total)) {
                 continue;
             }
 
-            String descripcion = valor(fila, 8);
             FacturaExcel factura = new FacturaExcel();
             factura.setNumero(numero);
             factura.setNombreCliente(cliente);
             factura.setBaseImponible(base);
             factura.setIva(iva);
-            factura.setTotalConIva(totalSinRetencion(base, iva, total));
+            factura.setTotalConIva(total);
             factura.setCobro(valor(fila, 7));
-            factura.setDescripcion(descripcion);
-            factura.setConcepto(descripcion.isBlank() ? "Limpieza de cristales" : descripcion);
+            factura.setDescripcion("");
+            factura.setConcepto("Limpieza de cristales");
             factura.setFecha(LocalDate.now());
             facturas.add(factura);
         }
@@ -155,15 +152,7 @@ public class ExcelService {
             String cliente = celdaCsv(fila, columnas, "cliente");
             BigDecimal base = decimal(celdaCsv(fila, columnas, "base"));
             BigDecimal iva = decimal(celdaCsv(fila, columnas, "iva"));
-            BigDecimal totalOriginal = decimal(celdaCsv(fila, columnas, "total"));
-
-            if (base == null && positivo(totalOriginal)) {
-                base = totalOriginal.divide(new BigDecimal("1.21"), 2, java.math.RoundingMode.HALF_UP);
-            }
-            if (positivo(base) && iva == null) {
-                iva = calcularIva21(base);
-            }
-            BigDecimal total = totalSinRetencion(base, iva, totalOriginal);
+            BigDecimal total = decimal(celdaCsv(fila, columnas, "total"));
 
             if (!debeImportarFilaFactura(numero, cliente, base, iva, total)) {
                 continue;
@@ -495,17 +484,6 @@ public class ExcelService {
             }
         }
         return LocalDate.now();
-    }
-
-    private BigDecimal totalSinRetencion(BigDecimal base, BigDecimal iva, BigDecimal totalOriginal) {
-        if (base != null && iva != null) {
-            return base.add(iva).setScale(2, java.math.RoundingMode.HALF_UP);
-        }
-        return totalOriginal == null ? null : totalOriginal.setScale(2, java.math.RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calcularIva21(BigDecimal base) {
-        return base.multiply(new BigDecimal("0.21")).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 
     private Map<String, List<List<String>>> leerHojasOds(File archivo) throws IOException {

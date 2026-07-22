@@ -35,12 +35,9 @@ import javax.imageio.ImageIO;
 /**
  * Renderiza la factura con la misma distribución del modelo "vintage".
  *
- * La retención se ignora deliberadamente: el total se calcula siempre como
- * base imponible + IVA, aunque Factura#getTotal() contenga un valor antiguo
- * calculado con retención.
+ * Los importes se muestran tal como fueron importados del fichero de facturas.
  */
 public class PdfFacturaVintageRenderer extends PdfFacturaService {
-    private static final BigDecimal TIPO_IVA = new BigDecimal("0.21");
     private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final Locale ES = Locale.forLanguageTag("es-ES");
     private static final DecimalFormat DINERO = new DecimalFormat("#,##0.00", new DecimalFormatSymbols(ES));
@@ -81,7 +78,7 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
                 PdfContentByte cb = writer.getDirectContent();
                 fondos(cb);
                 lineas(cb);
-                textos(cb, factura, empresa);
+                textos(cb, factura, empresa, formaPago);
                 logo(cb, empresa);
             } finally {
                 if (documento.isOpen()) {
@@ -186,13 +183,11 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
         rect(cb, 388.20f, 71.16f, 105.24f, 1.08f, GOLD);
     }
 
-    private void textos(PdfContentByte cb, Factura f, Empresa e) {
+    private void textos(PdfContentByte cb, Factura f, Empresa e, String formaPago) {
         Cliente c = f.getCliente();
         BigDecimal base = money(f.getBaseImponible());
-        BigDecimal iva = money(base.multiply(TIPO_IVA));
-
-        // No se usa f.getTotal(): así nunca se arrastra una retención antigua.
-        BigDecimal totalSinRetencion = money(base.add(iva));
+        BigDecimal iva = money(f.getIva());
+        BigDecimal total = money(f.getTotal());
 
         fitLeft(cb, val(e.getNombre()).toUpperCase(ES), 131.04f, 93.84f,
                 220f, bold, FONT_EMPRESA, BLACK);
@@ -275,18 +270,18 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
         // La fila de retenciones se elimina por completo.
         text(cb, "TOTAL A COBRAR", 130.92f, 675.59f,
                 bold, FONT_CUERPO, BLACK);
-        fitRight(cb, euros(totalSinRetencion), 458.13f, 676.07f,
+        fitRight(cb, euros(total), 458.13f, 676.07f,
                 93f, bold, FONT_CUERPO, BLACK);
 
         text(cb, "Tipo de pago:", 194.52f, 719.64f,
                 bold, FONT_CUERPO, BLACK);
         text(cb, "Metálico", 291.96f, 719.64f,
                 bold, FONT_CUERPO, BLACK);
-        checkBox(cb, 335.15f, 721.45f);
+        checkBox(cb, 335.15f, 721.45f, esMetalico(formaPago));
 
         fitLeft(cb, "Cargo a cuenta", 380.89f, 719.64f,
                 68f, bold, FONT_CUERPO, BLACK);
-        checkBox(cb, 451.55f, 721.45f);
+        checkBox(cb, 451.55f, 721.45f, esCargoCuenta(formaPago));
     }
 
     private void nombreFiscalEnDosColumnas(PdfContentByte cb, String nombreCompleto) {
@@ -405,14 +400,29 @@ public class PdfFacturaVintageRenderer extends PdfFacturaService {
         cb.restoreState();
     }
 
-    private void checkBox(PdfContentByte cb, float x, float top) {
+    private void checkBox(PdfContentByte cb, float x, float top, boolean marcado) {
         float bottom = y(top, CHECKBOX_SIZE);
         cb.saveState();
         cb.setColorStroke(BLACK);
         cb.setLineWidth(.7f);
         cb.rectangle(x, bottom, CHECKBOX_SIZE, CHECKBOX_SIZE);
+        if (marcado) {
+            float margen = 1.2f;
+            cb.moveTo(x + margen, bottom + margen);
+            cb.lineTo(x + CHECKBOX_SIZE - margen, bottom + CHECKBOX_SIZE - margen);
+            cb.moveTo(x + margen, bottom + CHECKBOX_SIZE - margen);
+            cb.lineTo(x + CHECKBOX_SIZE - margen, bottom + margen);
+        }
         cb.stroke();
         cb.restoreState();
+    }
+
+    private boolean esMetalico(String formaPago) {
+        return normaliza(formaPago).matches(".*\\b(metalico|efectivo)\\b.*");
+    }
+
+    private boolean esCargoCuenta(String formaPago) {
+        return normaliza(formaPago).matches(".*\\b(cargo|cuenta|domiciliacion)\\b.*");
     }
 
     private void text(PdfContentByte cb, String value, float x, float top,

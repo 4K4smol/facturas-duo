@@ -62,7 +62,7 @@ class PdfFacturaVintageRendererTest {
     }
 
     @Test
-    void factura269ImponeConceptoIva21TotalSinRetencionYFormatoNif() throws Exception {
+    void factura269ConservaImportesImportadosYFormatoNif() throws Exception {
         Empresa empresa = empresaCompleta();
         Cliente cliente = new Cliente("Cliente normal", "Cliente normal", "72135557J",
                 "Calle Mayor 1", "39300", "Torrelavega", "");
@@ -76,8 +76,8 @@ class PdfFacturaVintageRendererTest {
         assertTrue(texto.contains("72135557-J"));
         assertTrue(texto.contains("IVA 21%"));
         assertTrue(texto.contains("21,03 €"));
-        assertTrue(texto.contains("4,42 €"));
-        assertTrue(texto.contains("25,45 €"));
+        assertTrue(texto.contains("99,99 €"));
+        assertTrue(texto.contains("1,00 €"));
         assertFalse(texto.toLowerCase().contains("retencion"));
     }
 
